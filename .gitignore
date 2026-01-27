@@ -42,3 +42,4 @@ evaluation_results/*
 !evaluation_results/.gitkeep
 project_description.pdf
 analysis_venv/
+analysis/analysis_venv/
