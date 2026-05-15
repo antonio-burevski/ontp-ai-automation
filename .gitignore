@@ -2,6 +2,8 @@
 venv/
 env/
 .venv/
+analysis_venv/
+analysis/analysis_venv/
 
 # Python
 __pycache__/
@@ -32,14 +34,16 @@ Thumbs.db
 # Claude
 ./claude
 
-# Inner files
-evaluations.csv
-parsed_projects/*
-!parsed_projects/.gitkeep
-projects/*
-!projects/.gitkeep
-evaluation_results/*
-!evaluation_results/.gitkeep
+# Generated output
+evaluations_v2.csv
+parsed_projects_v2/*
+!parsed_projects_v2/.gitkeep
+projects/training/*
+!projects/training/.gitkeep
+projects/evaluation/*
+!projects/evaluation/.gitkeep
+training_data/*
+!training_data/.gitkeep
+evaluation_results_v2/*
+!evaluation_results_v2/.gitkeep
 project_description.pdf
-analysis_venv/
-analysis/analysis_venv/

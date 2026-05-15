@@ -1,84 +1,102 @@
-# Инструкции за користење на системот за евалуација
+# Инструкции за користење (v2)
 
-## Брз почеток
+## Подготовка
 
-```bash
-cd /home/artorias/Desktop/OnTP
+### Потребни фајлови
 
-# Тест режим (еден проект, еден модел)
-./run_evaluation.sh --test
+Ставете ги DOCX фајловите во соодветните папки:
 
-# Целосна евалуација (сите 41 проекти, сите 3 модели)
-./run_evaluation.sh
 ```
+projects/
+├── training/          # Проекти СО професорски оценки (за калибрација)
+│   ├── no_AI.docx
+│   ├── only_AI.docx
+│   └── hybrid.docx
+└── evaluation/        # Проекти БЕЗ оценки (за самостојна евалуација)
+    ├── no_AI.docx
+    ├── only_AI.docx
+    └── hybrid.docx
+```
+
+### Системски барања
+- Python 3.10+
+- Claude Code CLI инсталиран и автентициран
+- `python-docx` пакет (`pip install python-docx`)
 
 ---
 
-## Команди
+## Фаза 1: Тренинг (калибрација)
 
-### Основни команди
-
-| Команда | Опис |
-|---------|------|
-| `./run_evaluation.sh` | Евалуација на сите проекти со сите модели |
-| `./run_evaluation.sh --test` | Тест режим (1 проект, 1 модел) |
-| `./run_evaluation.sh --models sonnet` | Само со Sonnet модел |
-| `./run_evaluation.sh --models haiku` | Само со Haiku модел (најбрзо) |
-| `./run_evaluation.sh --models opus` | Само со Opus модел (најквалитетно) |
-
-### Напредни команди
+Моделите ги учат оценувачките стандарди на професорот.
 
 ```bash
+# Тренинг со сите 3 модели
+./run_v2.sh train
+
+# Тренинг само со еден модел
+./run_v2.sh train --models haiku
+
+# Тест режим (еден модел, брзо)
+./run_v2.sh test --phase train
+```
+
+Резултатот се зачувува во `training_data/calibration.json`.
+
+---
+
+## Фаза 2: Евалуација
+
+Моделите самостојно оценуваат нови проекти, калибрирани според тренингот.
+
+```bash
+# Евалуација со сите 3 модели
+./run_v2.sh evaluate
+
+# Евалуација само со opus и sonnet
+./run_v2.sh evaluate --models opus sonnet
+
 # Евалуација на специфични проекти
-./run_evaluation.sh --projects noAI_01a noAI_02a hybrid_01
+./run_v2.sh evaluate --projects evaluation_noAI_01 evaluation_hybrid_03
 
-# Комбинација на проекти и модели
-./run_evaluation.sh --projects noAI_01a --models sonnet opus
-
-# Повеќе модели
-./run_evaluation.sh --models haiku sonnet
+# Тест режим
+./run_v2.sh test --phase evaluate
 ```
 
 ---
 
-## Достапни проекти (Project IDs)
+## Модели
 
-### Без AI (noAI) - 20 проекти
-- `noAI_01a` до `noAI_10a` - од noAI.docx
-- `noAI_11b` до `noAI_20b` - од noAI-2.docx
-
-### Само AI (onlyAI) - 5 проекти
-- `onlyAI_01` до `onlyAI_05`
-
-### Хибридни (hybrid) - 16 проекти
-- `hybrid_01` до `hybrid_16`
+| Име | Model ID | Опис |
+|-----|----------|------|
+| opus | claude-opus-4-6 | Најквалитетен, најбавен |
+| sonnet | claude-sonnet-4-6 | Баланс квалитет/брзина |
+| haiku | claude-haiku-4-5 | Најбрз, добар за тестирање |
 
 ---
 
 ## Излезни фајлови
 
-### evaluations.csv
-Главен CSV фајл со сите евалуации. Формат:
+| Фајл/Папка | Опис |
+|-------------|------|
+| `training_data/calibration.json` | Калибрациски примери по тип |
+| `training_data/training_results.json` | Детални тренинг резултати |
+| `evaluations_v2.csv` | Финален CSV (професор + AI оценки) |
+| `evaluation_results_v2/` | Поединечни JSON резултати |
+
+### CSV формат
 
 | Колона | Опис |
 |--------|------|
-| project_id | Уникатен ID на проектот |
-| project_name | Име на темата |
-| project_type | Тип: noAI, onlyAI, hybrid |
-| evaluator | ПРОФЕСОР или AI-HAIKU/SONNET/OPUS |
-| metap | Фактор за метаподатоци (0.0-1.0) |
-| tocnost | Фактор за точност (0.0-1.0) |
-| izmama | Коментар за плагијаризам/измама |
-| kviz | Поени од квиз (0-100) |
-| vkupno | Вкупно = metap × tocnost × kviz |
+| project_id | Уникатен ID |
+| project_name | Тема |
+| project_type | noAI / onlyAI / hybrid |
+| evaluator | ПРОФЕСОР или AI-OPUS/SONNET/HAIKU |
+| metap | Фактор извори (0.0-1.0) |
+| tocnost | Фактор точност (0.0-1.0) |
+| izmama | Плагијаризам коментар |
+| kviz | Поени (0-100) |
+| vkupno | metap x tocnost x kviz |
 | komentar | Текстуален коментар |
-
-Проектите се групирани: прво оценка од професор, потоа AI евалуации.
-
-### evaluation_results/
-Папка со детални JSON резултати:
-- `{project_id}_{model}.json` - Поединечна евалуација
-- `{project_id}_all.json` - Сите евалуации за еден проект
 
 ---
 
@@ -86,57 +104,29 @@ cd /home/artorias/Desktop/OnTP
 
 ### Квиз компоненти (100 поени)
 
-| Компонента | Поени | Опис |
-|------------|-------|------|
-| Три групи прашања | 30 | Процес на истражување (3×10) |
-| Вовед | 10 | Објаснување што се истражува |
-| Разработка | 35 | Длабочина, аргументи, извори |
-| Заклучок + критички став | 25 | Јасен заклучок, критичност |
+| Компонента | Поени |
+|------------|-------|
+| Три групи прашања | 30 (3x10) |
+| Вовед | 10 |
+| Разработка | 35 |
+| Заклучок + критички став | 25 |
 
 ### Метаподатоци фактор (metap)
-- 10+ извори: metap = 1.0
-- 9 извори: metap = 1.0
-- < 9 извори: казна 0.05 за секој што недостасува
-- Пример: 4 извори → metap = 0.7
+- 9+ извори → 1.0
+- < 9 извори → казна 0.05 за секој што недостасува
 
-### Формула
+### Финална формула
 ```
-Вкупно = metap × tocnost × kviz
+Вкупно = metap x tocnost x kviz
 ```
-
----
-
-## Времетраење
-
-| Опција | Проекти | Модели | Евалуации | Приближно време |
-|--------|---------|--------|-----------|-----------------|
-| --test | 1 | 1 | 1 | ~10 сек |
-| --models haiku | 41 | 1 | 41 | ~7 мин |
-| --models sonnet | 41 | 1 | 41 | ~10 мин |
-| --models opus | 41 | 1 | 41 | ~15 мин |
-| (сите) | 41 | 3 | 123 | ~25-30 мин |
 
 ---
 
 ## Проблеми и решенија
 
-### "claude: command not found"
-```bash
-# Провери дали Claude Code е инсталиран
-which claude
-```
-
-### "Permission denied"
-```bash
-chmod +x run_evaluation.sh
-```
-
-### Timeout грешки
-Зголеми го timeout во evaluator.py (линија со `timeout=120`)
-
-### Прекинување и продолжување
-Системот автоматски ги зачувува резултатите по секоја евалуација.
-За да продолжиш од каде застанал, исклучи ги веќе евалуираните проекти:
-```bash
-./run_evaluation.sh --projects hybrid_05 hybrid_06 hybrid_07 ...
-```
+| Проблем | Решение |
+|---------|---------|
+| `claude: command not found` | Инсталирајте Claude Code CLI |
+| `Permission denied` | `chmod +x run_v2.sh` |
+| Timeout грешки | Зголемете `timeout` во `evaluator_v2.py` |
+| Нема калибрациски податоци | Прво извршете `./run_v2.sh train` |
